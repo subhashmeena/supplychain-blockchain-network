@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	//"strconv"
+	"strconv"
 	"encoding/json"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -31,10 +31,19 @@ type LogisticsProvider struct {
 	Location string
 }
 
+type Shipment struct {
+	Id string
+	Content string
+	WeightInKgs int //convert this into a integer
+	SellerId string
+	LogisticsProviderId string
+	BuyerId string
+}
+
 var buyerStore map[string]Buyer
 var sellerStore map[string]Seller
 var logisticsProviderStore map[string]LogisticsProvider
-
+var shipmentStore map[string]Shipment
  
 
 
@@ -67,6 +76,8 @@ func (t *LogisticsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respons
 		return t.getBuyer(stub);
 	} else if( function == "getLogisticsProvider") {
 		return t.getLogisticsProvider(stub);
+	} else if ( function == "registerShipment") {
+		return t.registerShipment(stub);
 	} else {
 		return shim.Success(nil);
 	}
@@ -219,3 +230,69 @@ func (t *LogisticsChaincode) getLogisticsProvider(stub shim.ChaincodeStubInterfa
 	fmt.Println(logisticsProviderStore[logisticsProviderId].Name);
 	return shim.Success([]byte("Successfully retrieved the json data from the ledger"));
 }
+
+func (t *LogisticsChaincode) registerShipment(stub shim.ChaincodeStubInterface) pb.Response {
+
+	//we'll use the ABAC to determine the seller which is registering this shipment
+	//but for iteration 0 it's sufficient to accept it as a parameter, in the function call
+
+	_,parameters := stub.GetFunctionAndParameters();
+
+	if(len(parameters) != 6 ) {
+		return shim.Error("Exactly 6 parameters are expected by the function: registerShipment");
+	}
+
+	fmt.Println(parameters);
+	shipmentId := parameters[0];
+	shipmentContent := parameters[1];
+	shipmentWeightInKgs, errex := strconv.Atoi(parameters[2]); //convert this into a integer
+	if(errex != nil ) {
+		return shim.Error("Can't convert string weightinkgs to int weightinkigs");
+	}
+	shipmentSeller := parameters[3];
+	shipmentLogisticsProvider := parameters[4];
+	shipmentBuyer := parameters[5];
+
+	//form a shipment structure
+	//retreive the shipment store, add the shipment to it
+	//store the shipmentstore back in the ledger
+
+	shipment := Shipment{shipmentId, shipmentContent, shipmentWeightInKgs, shipmentSeller, shipmentLogisticsProvider, shipmentBuyer}
+	fmt.Println(shipment);
+	shipmentbytes, err := stub.GetState("shipmentstore");
+	
+	if(err != nil ) {
+		return shim.Error("Error retrieving the shipmentstore from the ledger");
+	}
+	
+	shipmentStore = make(map[string]Shipment);
+
+	if( len(shipmentbytes) != 0 ) {
+		fmt.Println("The shipmentstore in ledger is not empty");
+		err = json.Unmarshal(shipmentbytes, &shipmentStore);
+		if( err != nil ) {
+			return shim.Error("Can't unmarshal the shipmentbytes to structure");
+		}
+	}
+
+
+	
+	shipmentStore[shipmentId] = shipment;
+
+	shipmentbytes, err = json.Marshal(shipmentStore);
+
+	if( err != nil ) {
+		fmt.Println("Error marshaling the shipmentStore to json string");
+		return shim.Error("Error marshaling the shipmentStore to json string");
+	}
+	err = stub.PutState("shipmentstore",shipmentbytes);
+	if(err != nil ) {
+		fmt.Println("Can't write shipmentbytes to the ledger");
+		return shim.Error("Can't write shipmentbytes to the ledger");
+	}
+
+
+
+	return shim.Success([]byte("Successfully registered the shipment with the ledger"));
+}
+
