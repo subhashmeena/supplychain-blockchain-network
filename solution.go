@@ -78,6 +78,8 @@ func (t *LogisticsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respons
 		return t.getLogisticsProvider(stub);
 	} else if ( function == "registerShipment") {
 		return t.registerShipment(stub);
+	} else if ( function == "getShipments") {
+		return t.getShipments(stub);
 	} else {
 		return shim.Success(nil);
 	}
@@ -296,3 +298,73 @@ func (t *LogisticsChaincode) registerShipment(stub shim.ChaincodeStubInterface) 
 	return shim.Success([]byte("Successfully registered the shipment with the ledger"));
 }
 
+func (t *LogisticsChaincode) getShipments(stub shim.ChaincodeStubInterface) pb.Response {
+	//initally we'll just accept the sellerid,buyerid or transporterid
+
+	_,args := stub.GetFunctionAndParameters();
+
+	actorType := args[0];
+	actorId := args[1];
+
+	//depending on whether the actor is seller,buyer or logisticsprovider, we return back only those shipments
+	//that it needs to concern itself with
+
+	//optimisation ?
+	returnShipment := make(map[string]Shipment);
+
+	shipmentbytes,err := stub.GetState("shipmentstore");
+
+	if( err != nil ) {
+		return shim.Error("Can't retrieve the shipment store from the ledger");
+	}
+
+
+	if( len(shipmentbytes) == 0 ) {
+		return shim.Success([]byte("Shipment store is empty"));
+	}
+
+	shipmentStore = make(map[string]Shipment);
+
+	err = json.Unmarshal(shipmentbytes, &shipmentStore);
+	if(err != nil ) {
+		return shim.Error("Error unmarshaling the shipmentstore bytes to structure");
+	}
+
+	fmt.Println("Reached here");
+
+	fmt.Println(string(shipmentbytes));
+	
+
+	if(actorType == "seller") {
+		
+		for id,shipment := range shipmentStore {
+			if(shipment.SellerId == actorId) {
+				returnShipment[id]=shipment
+			}
+		}
+
+	} else if(actorType == "buyer") {
+
+		for id,shipment := range shipmentStore {
+			if(shipment.BuyerId == actorId) {
+				returnShipment[id]=shipment
+			}
+		}
+
+	} else {
+
+		for id,shipment := range shipmentStore {
+			if(shipment.LogisticsProviderId == actorId) {
+				returnShipment[id]=shipment
+			}
+		}
+		
+	}
+
+	shipmentbytes, err = json.Marshal(returnShipment);
+	if(err != nil ) {
+		return shim.Error("Can't marshal the returnShipment object to json string");
+	}
+
+	return shim.Success(shipmentbytes);
+}
