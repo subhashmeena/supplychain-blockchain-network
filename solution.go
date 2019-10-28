@@ -1,56 +1,54 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
-	"encoding/json"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
-
 type LogisticsChaincode struct {
 }
 
 type Seller struct {
-	Id string
-	Name string
+	Id       string
+	Name     string
 	Location string
 }
 
 type Buyer struct {
-	Id string
-	Name string
+	Id       string
+	Name     string
 	Location string
 }
 
 type LogisticsProvider struct {
-	Id string
-	Name string
+	Id       string
+	Name     string
 	Location string
 }
 
 type Shipment struct {
-	Id string
-	Content string
-	WeightInKgs int //convert this into a integer
-	SellerId string
+	Id                  string
+	Content             string
+	WeightInKgs         int //convert this into a integer
+	SellerId            string
 	LogisticsProviderId string
-	BuyerId string
+	BuyerId             string
+	TemperatureReadings map[string]float64
+	ShipmentStatus      string
 }
 
 var buyerStore map[string]Buyer
 var sellerStore map[string]Seller
 var logisticsProviderStore map[string]LogisticsProvider
 var shipmentStore map[string]Shipment
- 
-
 
 func (t *LogisticsChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("Initiated the chaincode");
+	fmt.Println("Initiated the chaincode")
 	_, args := stub.GetFunctionAndParameters()
-	
 
 	if len(args) != 0 {
 		return shim.Error("Incorrect number of arguments. Expecting 4")
@@ -59,29 +57,30 @@ func (t *LogisticsChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response 
 	return shim.Success(nil)
 }
 
-
 func (t *LogisticsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
-	function,_ := stub.GetFunctionAndParameters();
+	function, _ := stub.GetFunctionAndParameters()
 
-	fmt.Println("The function invoked is ",function);
-	if(function == "registerSeller") {
-		return t.registerSeller(stub);
-	} else if( function == "registerLogisticsProvider") {
-		return t.registerLogisticsProvider(stub);
-	} else if( function == "registerBuyer") {
-		return t.registerBuyer(stub);
-	} else if(function == "getSeller") {
-		return t.getSeller(stub);
-	} else if( function == "getBuyer" ) {
-		return t.getBuyer(stub);
-	} else if( function == "getLogisticsProvider") {
-		return t.getLogisticsProvider(stub);
-	} else if ( function == "registerShipment") {
-		return t.registerShipment(stub);
-	} else if ( function == "getShipments") {
-		return t.getShipments(stub);
+	fmt.Println("The function invoked is ", function)
+	if function == "registerSeller" {
+		return t.registerSeller(stub)
+	} else if function == "registerLogisticsProvider" {
+		return t.registerLogisticsProvider(stub)
+	} else if function == "registerBuyer" {
+		return t.registerBuyer(stub)
+	} else if function == "getSeller" {
+		return t.getSeller(stub)
+	} else if function == "getBuyer" {
+		return t.getBuyer(stub)
+	} else if function == "getLogisticsProvider" {
+		return t.getLogisticsProvider(stub)
+	} else if function == "registerShipment" {
+		return t.registerShipment(stub)
+	} else if function == "getShipments" {
+		return t.getShipments(stub)
+	} else if function == "updateShipmentTemperature" {
+		return t.updateShipmentTemperature(stub)
 	} else {
-		return shim.Success(nil);
+		return shim.Success(nil)
 	}
 }
 
@@ -95,142 +94,169 @@ func main() {
 func (t *LogisticsChaincode) registerSeller(stub shim.ChaincodeStubInterface) pb.Response {
 	fmt.Println("In the buyer seller function")
 
-	sellerStore := make(map[string]Seller);
-	sellerStore["seller01"] = Seller{ "seller01", "Worldwide Seller", "Mumbai"};
+	_, args := stub.GetFunctionAndParameters()
 
-	fmt.Println(sellerStore);
-	bytearray, _ := json.Marshal(sellerStore);
-
-	fmt.Println(string(bytearray));
-	
-	err := stub.PutState("sellerstore", bytearray);
-	if( err != nil) {
-		fmt.Println("While writing sellerstore to ledger, error encountered ",err);
-		return shim.Error("Error occurrered while writing sellerstore to the ledger");
+	if len(args) != 3 {
+		return shim.Error("registerSeller function expects exactly 3 arguments")
 	}
 
-	return shim.Success([]byte("Successfully written sellerstore to the ledger"));
+	//implements blank checks later
+	sellerId := args[0]
+	sellerName := args[1]
+	sellerLocation := args[2]
+
+	sellerStore := make(map[string]Seller)
+	sellerStore["seller01"] = Seller{sellerId, sellerName, sellerLocation}
+
+	fmt.Println(sellerStore)
+	bytearray, _ := json.Marshal(sellerStore)
+
+	fmt.Println(string(bytearray))
+
+	err := stub.PutState("sellerstore", bytearray)
+	if err != nil {
+		fmt.Println("While writing sellerstore to ledger, error encountered ", err)
+		return shim.Error("Error occurrered while writing sellerstore to the ledger")
+	}
+
+	return shim.Success([]byte("Successfully written sellerstore to the ledger"))
 }
 
 func (t *LogisticsChaincode) registerBuyer(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("In the buyer buyer function");
+	fmt.Println("In the buyer buyer function")
 
+	_, args := stub.GetFunctionAndParameters()
 
-	buyerStore := make(map[string]Buyer);
-	buyerStore["buyer01"] = Buyer{ "buyer01", "Retail Expo", "Chennai"};
-
-	fmt.Println(buyerStore);
-	bytearray, _ := json.Marshal(buyerStore);
-
-	fmt.Println(string(bytearray));
-	
-	err := stub.PutState("buyerstore", bytearray);
-	if( err != nil) {
-		fmt.Println("While writing buyerstore to ledger, error encountered ",err);
-		return shim.Error("Error occurrered while writing buyerstore to the ledger");
+	if len(args) != 3 {
+		return shim.Error("registerBuyer function expects exactly 3 arguments")
 	}
 
-	return shim.Success([]byte("Successfully written buyerstore to the ledger"));
+	//implements blank checks later
+	buyerId := args[0]
+	buyerName := args[1]
+	buyerLocation := args[2]
+
+	buyerStore := make(map[string]Buyer)
+	buyerStore["buyer01"] = Buyer{buyerId, buyerName, buyerLocation}
+
+	fmt.Println(buyerStore)
+	bytearray, _ := json.Marshal(buyerStore)
+
+	fmt.Println(string(bytearray))
+
+	err := stub.PutState("buyerstore", bytearray)
+	if err != nil {
+		fmt.Println("While writing buyerstore to ledger, error encountered ", err)
+		return shim.Error("Error occurrered while writing buyerstore to the ledger")
+	}
+
+	return shim.Success([]byte("Successfully written buyerstore to the ledger"))
 
 }
 
 func (t *LogisticsChaincode) registerLogisticsProvider(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("In the buyer logistics provider function");
-	
-	logisticsProviderStore := make(map[string]LogisticsProvider);
-	logisticsProviderStore["transporter01"] = LogisticsProvider{ "transporter01", "Indian Transporter", "Mumbai"};
+	fmt.Println("In the buyer logistics provider function")
 
-	fmt.Println(logisticsProviderStore);
-	bytearray, _ := json.Marshal(logisticsProviderStore);
+	_, args := stub.GetFunctionAndParameters()
 
-	fmt.Println(string(bytearray));
-	
-	err := stub.PutState("logisticsproviderstore", bytearray);
-	if( err != nil) {
-		fmt.Println("While writing logisticsProviderstore to ledger, error encountered ",err);
-		return shim.Error("Error occurrered while writing logisticsProviderstore to the ledger");
+	if len(args) != 3 {
+		return shim.Error("registerLogisticsProvider function expects exactly 3 arguments")
 	}
 
-	return shim.Success([]byte("Successfully written logisticsProviderstore to the ledger"));
+	//implements blank checks later
+	logisticsProviderId := args[0]
+	logisticsProviderName := args[1]
+	logisticsProviderLocation := args[2]
+
+	logisticsProviderStore := make(map[string]LogisticsProvider)
+	logisticsProviderStore["transporter01"] = LogisticsProvider{logisticsProviderId, logisticsProviderName, logisticsProviderLocation}
+
+	fmt.Println(logisticsProviderStore)
+	bytearray, _ := json.Marshal(logisticsProviderStore)
+
+	fmt.Println(string(bytearray))
+
+	err := stub.PutState("logisticsproviderstore", bytearray)
+	if err != nil {
+		fmt.Println("While writing logisticsProviderstore to ledger, error encountered ", err)
+		return shim.Error("Error occurrered while writing logisticsProviderstore to the ledger")
+	}
+
+	return shim.Success([]byte("Successfully written logisticsProviderstore to the ledger"))
 }
 
-
 func (t *LogisticsChaincode) getSeller(stub shim.ChaincodeStubInterface) pb.Response {
-	_,parameters := stub.GetFunctionAndParameters();
-	
+	_, parameters := stub.GetFunctionAndParameters()
+
 	//put a check here
-	var sellerId = parameters[0];
+	var sellerId = parameters[0]
 
-	sellerbytes,err := stub.GetState("sellerstore");
-	if(err != nil ) {
-		return shim.Error("Could not retrieve seller store from the ledger");
+	sellerbytes, err := stub.GetState("sellerstore")
+	if err != nil {
+		return shim.Error("Could not retrieve seller store from the ledger")
 	}
 
+	sellerStore = make(map[string]Seller)
 
-	sellerStore = make(map[string]Seller);
-
-	err = json.Unmarshal(sellerbytes,&sellerStore);
-	if(err != nil ) {
-		fmt.Println(string(sellerbytes));
-		fmt.Println(err);
-		return shim.Error("Error while unmarshaling data retrieved from the ledger");
+	err = json.Unmarshal(sellerbytes, &sellerStore)
+	if err != nil {
+		fmt.Println(string(sellerbytes))
+		fmt.Println(err)
+		return shim.Error("Error while unmarshaling data retrieved from the ledger")
 	}
 
-	fmt.Println(sellerStore[sellerId].Name);
-	return shim.Success([]byte("Successfully retrieved the json data from the ledger"));
-	
+	fmt.Println(sellerStore[sellerId].Name)
+	return shim.Success([]byte("Successfully retrieved the json data from the ledger"))
+
 }
 
 func (t *LogisticsChaincode) getBuyer(stub shim.ChaincodeStubInterface) pb.Response {
-	_,parameters := stub.GetFunctionAndParameters();
-	
+	_, parameters := stub.GetFunctionAndParameters()
+
 	//put a check here
-	var buyerId = parameters[0];
+	var buyerId = parameters[0]
 
-	buyerbytes,err := stub.GetState("buyerstore");
-	if(err != nil ) {
-		return shim.Error("Could not retrieve buyer store from the ledger");
+	buyerbytes, err := stub.GetState("buyerstore")
+	if err != nil {
+		return shim.Error("Could not retrieve buyer store from the ledger")
 	}
 
+	buyerStore = make(map[string]Buyer)
 
-	buyerStore = make(map[string]Buyer);
-
-	err = json.Unmarshal(buyerbytes,&buyerStore);
-	if(err != nil ) {
-		fmt.Println(string(buyerbytes));
-		fmt.Println(err);
-		return shim.Error("Error while unmarshaling data retrieved from the ledger");
+	err = json.Unmarshal(buyerbytes, &buyerStore)
+	if err != nil {
+		fmt.Println(string(buyerbytes))
+		fmt.Println(err)
+		return shim.Error("Error while unmarshaling data retrieved from the ledger")
 	}
 
-	fmt.Println(buyerStore[buyerId].Name);
-	return shim.Success([]byte("Successfully retrieved the json data from the ledger"));
-	
+	fmt.Println(buyerStore[buyerId].Name)
+	return shim.Success([]byte("Successfully retrieved the json data from the ledger"))
+
 }
 
-
 func (t *LogisticsChaincode) getLogisticsProvider(stub shim.ChaincodeStubInterface) pb.Response {
-	_,parameters := stub.GetFunctionAndParameters();
-	
+	_, parameters := stub.GetFunctionAndParameters()
+
 	//put a check here
-	var logisticsProviderId = parameters[0];
+	var logisticsProviderId = parameters[0]
 
-	logisticsproviderbytes,err := stub.GetState("logisticsproviderstore");
-	if(err != nil ) {
-		return shim.Error("Could not retrieve logistics provider store from the ledger");
+	logisticsproviderbytes, err := stub.GetState("logisticsproviderstore")
+	if err != nil {
+		return shim.Error("Could not retrieve logistics provider store from the ledger")
 	}
 
+	logisticsProviderStore = make(map[string]LogisticsProvider)
 
-	logisticsProviderStore = make(map[string]LogisticsProvider);
-
-	err = json.Unmarshal(logisticsproviderbytes,&logisticsProviderStore);
-	if(err != nil ) {
-		fmt.Println(string(logisticsproviderbytes));
-		fmt.Println(err);
-		return shim.Error("Error while unmarshaling data retrieved from the ledger");
+	err = json.Unmarshal(logisticsproviderbytes, &logisticsProviderStore)
+	if err != nil {
+		fmt.Println(string(logisticsproviderbytes))
+		fmt.Println(err)
+		return shim.Error("Error while unmarshaling data retrieved from the ledger")
 	}
 
-	fmt.Println(logisticsProviderStore[logisticsProviderId].Name);
-	return shim.Success([]byte("Successfully retrieved the json data from the ledger"));
+	fmt.Println(logisticsProviderStore[logisticsProviderId].Name)
+	return shim.Success([]byte("Successfully retrieved the json data from the ledger"))
 }
 
 func (t *LogisticsChaincode) registerShipment(stub shim.ChaincodeStubInterface) pb.Response {
@@ -238,133 +264,191 @@ func (t *LogisticsChaincode) registerShipment(stub shim.ChaincodeStubInterface) 
 	//we'll use the ABAC to determine the seller which is registering this shipment
 	//but for iteration 0 it's sufficient to accept it as a parameter, in the function call
 
-	_,parameters := stub.GetFunctionAndParameters();
+	_, parameters := stub.GetFunctionAndParameters()
 
-	if(len(parameters) != 6 ) {
-		return shim.Error("Exactly 6 parameters are expected by the function: registerShipment");
+	if len(parameters) != 6 {
+		return shim.Error("Exactly 6 parameters are expected by the function: registerShipment")
 	}
 
-	fmt.Println(parameters);
-	shipmentId := parameters[0];
-	shipmentContent := parameters[1];
-	shipmentWeightInKgs, errex := strconv.Atoi(parameters[2]); //convert this into a integer
-	if(errex != nil ) {
-		return shim.Error("Can't convert string weightinkgs to int weightinkigs");
+	fmt.Println(parameters)
+	shipmentId := parameters[0]
+	shipmentContent := parameters[1]
+	shipmentWeightInKgs, errex := strconv.Atoi(parameters[2]) //convert this into a integer
+	if errex != nil {
+		return shim.Error("Can't convert string weightinkgs to int weightinkigs")
 	}
-	shipmentSeller := parameters[3];
-	shipmentLogisticsProvider := parameters[4];
-	shipmentBuyer := parameters[5];
+	shipmentSeller := parameters[3]
+	shipmentLogisticsProvider := parameters[4]
+	shipmentBuyer := parameters[5]
 
 	//form a shipment structure
 	//retreive the shipment store, add the shipment to it
 	//store the shipmentstore back in the ledger
 
-	shipment := Shipment{shipmentId, shipmentContent, shipmentWeightInKgs, shipmentSeller, shipmentLogisticsProvider, shipmentBuyer}
-	fmt.Println(shipment);
-	shipmentbytes, err := stub.GetState("shipmentstore");
-	
-	if(err != nil ) {
-		return shim.Error("Error retrieving the shipmentstore from the ledger");
-	}
-	
-	shipmentStore = make(map[string]Shipment);
+	shipment := Shipment{shipmentId, shipmentContent, shipmentWeightInKgs, shipmentSeller, shipmentLogisticsProvider, shipmentBuyer, make(map[string]float64), "In-Store"}
+	fmt.Println(shipment)
+	shipmentbytes, err := stub.GetState("shipmentstore")
 
-	if( len(shipmentbytes) != 0 ) {
-		fmt.Println("The shipmentstore in ledger is not empty");
-		err = json.Unmarshal(shipmentbytes, &shipmentStore);
-		if( err != nil ) {
-			return shim.Error("Can't unmarshal the shipmentbytes to structure");
+	if err != nil {
+		return shim.Error("Error retrieving the shipmentstore from the ledger")
+	}
+
+	shipmentStore = make(map[string]Shipment)
+
+	if len(shipmentbytes) != 0 {
+		fmt.Println("The shipmentstore in ledger is not empty")
+		err = json.Unmarshal(shipmentbytes, &shipmentStore)
+		if err != nil {
+			return shim.Error("Can't unmarshal the shipmentbytes to structure")
 		}
 	}
 
+	shipmentStore[shipmentId] = shipment
 
-	
-	shipmentStore[shipmentId] = shipment;
+	shipmentbytes, err = json.Marshal(shipmentStore)
 
-	shipmentbytes, err = json.Marshal(shipmentStore);
-
-	if( err != nil ) {
-		fmt.Println("Error marshaling the shipmentStore to json string");
-		return shim.Error("Error marshaling the shipmentStore to json string");
+	if err != nil {
+		fmt.Println("Error marshaling the shipmentStore to json string")
+		return shim.Error("Error marshaling the shipmentStore to json string")
 	}
-	err = stub.PutState("shipmentstore",shipmentbytes);
-	if(err != nil ) {
-		fmt.Println("Can't write shipmentbytes to the ledger");
-		return shim.Error("Can't write shipmentbytes to the ledger");
+	err = stub.PutState("shipmentstore", shipmentbytes)
+	if err != nil {
+		fmt.Println("Can't write shipmentbytes to the ledger")
+		return shim.Error("Can't write shipmentbytes to the ledger")
 	}
 
-
-
-	return shim.Success([]byte("Successfully registered the shipment with the ledger"));
+	return shim.Success([]byte("Successfully registered the shipment with the ledger"))
 }
 
 func (t *LogisticsChaincode) getShipments(stub shim.ChaincodeStubInterface) pb.Response {
 	//initally we'll just accept the sellerid,buyerid or transporterid
 
-	_,args := stub.GetFunctionAndParameters();
+	_, args := stub.GetFunctionAndParameters()
 
-	actorType := args[0];
-	actorId := args[1];
+	actorType := args[0]
+	actorId := args[1]
 
 	//depending on whether the actor is seller,buyer or logisticsprovider, we return back only those shipments
 	//that it needs to concern itself with
 
 	//optimisation ?
-	returnShipment := make(map[string]Shipment);
+	returnShipment := make(map[string]Shipment)
 
-	shipmentbytes,err := stub.GetState("shipmentstore");
+	shipmentbytes, err := stub.GetState("shipmentstore")
 
-	if( err != nil ) {
-		return shim.Error("Can't retrieve the shipment store from the ledger");
+	if err != nil {
+		return shim.Error("Can't retrieve the shipment store from the ledger")
 	}
 
-
-	if( len(shipmentbytes) == 0 ) {
-		return shim.Success([]byte("Shipment store is empty"));
+	if len(shipmentbytes) == 0 {
+		return shim.Success([]byte("Shipment store is empty"))
 	}
 
-	shipmentStore = make(map[string]Shipment);
+	shipmentStore = make(map[string]Shipment)
 
-	err = json.Unmarshal(shipmentbytes, &shipmentStore);
-	if(err != nil ) {
-		return shim.Error("Error unmarshaling the shipmentstore bytes to structure");
+	err = json.Unmarshal(shipmentbytes, &shipmentStore)
+	if err != nil {
+		return shim.Error("Error unmarshaling the shipmentstore bytes to structure")
 	}
 
-	fmt.Println("Reached here");
+	fmt.Println("Reached here")
 
-	fmt.Println(string(shipmentbytes));
-	
+	fmt.Println(string(shipmentbytes))
 
-	if(actorType == "seller") {
-		
-		for id,shipment := range shipmentStore {
-			if(shipment.SellerId == actorId) {
-				returnShipment[id]=shipment
+	if actorType == "seller" {
+
+		for id, shipment := range shipmentStore {
+			if shipment.SellerId == actorId {
+				returnShipment[id] = shipment
 			}
 		}
 
-	} else if(actorType == "buyer") {
+	} else if actorType == "buyer" {
 
-		for id,shipment := range shipmentStore {
-			if(shipment.BuyerId == actorId) {
-				returnShipment[id]=shipment
+		for id, shipment := range shipmentStore {
+			if shipment.BuyerId == actorId {
+				returnShipment[id] = shipment
 			}
 		}
 
 	} else {
 
-		for id,shipment := range shipmentStore {
-			if(shipment.LogisticsProviderId == actorId) {
-				returnShipment[id]=shipment
+		for id, shipment := range shipmentStore {
+			if shipment.LogisticsProviderId == actorId {
+				returnShipment[id] = shipment
 			}
 		}
-		
+
 	}
 
-	shipmentbytes, err = json.Marshal(returnShipment);
-	if(err != nil ) {
-		return shim.Error("Can't marshal the returnShipment object to json string");
+	shipmentbytes, err = json.Marshal(returnShipment)
+	if err != nil {
+		return shim.Error("Can't marshal the returnShipment object to json string")
 	}
 
-	return shim.Success(shipmentbytes);
+	return shim.Success(shipmentbytes)
+}
+
+func (t *LogisticsChaincode) updateShipmentTemperature(stub shim.ChaincodeStubInterface) pb.Response {
+	//assuming that only logisticsproviders's IoT device during the transit call this function to update
+	//the temperature of shipment
+
+	//in further iterations we will determine the logistics provider with the ABAC by attributes in certificates
+
+	_, args := stub.GetFunctionAndParameters()
+
+	if len(args) != 4 {
+		return shim.Error("updateShipmentTemperature function requires exactly 4 arguments")
+	}
+	//logisticsProviderId := args[0]
+	shipmentId := args[1]
+	time := args[2]
+	temperature, err := strconv.ParseFloat(args[3], 64)
+
+	if err != nil {
+		return shim.Error("Error converting the temperatre reading from string to float64")
+	}
+
+	shipment := Shipment{}
+	shipment.TemperatureReadings = make(map[string]float64)
+
+	shipmentbytes, err := stub.GetState("shipmentstore")
+
+	shipmentStore := make(map[string]Shipment)
+
+	err = json.Unmarshal(shipmentbytes, &shipmentStore)
+
+	valueSet := false
+
+	fmt.Println(shipmentStore)
+
+	for id, shipmentValue := range shipmentStore {
+		if id == shipmentId {
+			shipment = shipmentValue
+			valueSet = true
+			break
+		}
+	}
+
+	if valueSet == false {
+		return shim.Error("Can't find the request shipment")
+	}
+
+	shipment.TemperatureReadings = make(map[string]float64)
+	shipment.TemperatureReadings[time] = temperature
+
+	shipmentStore[shipmentId] = shipment
+
+	shipmentbytes, err = json.Marshal(shipmentStore)
+
+	if err != nil {
+		return shim.Error("Can't convert shipmentStore to json string bytes")
+	}
+
+	err = stub.PutState("shipmentstore", shipmentbytes)
+	if err != nil {
+		return shim.Error("Error updating the shipmentStore in the ledger")
+	}
+
+	return shim.Success([]byte("Successfully updated the temperature of the shipment in the ledger"))
 }
