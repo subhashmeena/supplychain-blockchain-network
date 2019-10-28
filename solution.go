@@ -38,7 +38,7 @@ type Shipment struct {
 	LogisticsProviderId string
 	BuyerId             string
 	TemperatureReadings map[string]float64
-	ShipmentStatus      string
+	Status              string
 }
 
 var buyerStore map[string]Buyer
@@ -79,6 +79,8 @@ func (t *LogisticsChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Respons
 		return t.getShipments(stub)
 	} else if function == "updateShipmentTemperature" {
 		return t.updateShipmentTemperature(stub)
+	} else if function == "updateShipmentStatus" {
+		return t.updateShipmentStatus(stub)
 	} else {
 		return shim.Success(nil)
 	}
@@ -451,4 +453,76 @@ func (t *LogisticsChaincode) updateShipmentTemperature(stub shim.ChaincodeStubIn
 	}
 
 	return shim.Success([]byte("Successfully updated the temperature of the shipment in the ledger"))
+}
+
+func (t *LogisticsChaincode) updateShipmentStatus(stub shim.ChaincodeStubInterface) pb.Response {
+	_, args := stub.GetFunctionAndParameters()
+
+	if len(args) != 4 {
+		return shim.Error("The function updateShipmentStatus requires exactly 4 arguments: actorType, actorId, shipmentId, newStatus ")
+	}
+
+	//blank checks later
+	// actorType := args[0]
+	// actorId := args[1]
+	shipmentId := args[2]
+	newStatus := args[3]
+
+	//get shipment store
+	//get the required shipment
+	//update the status
+	//store the shipmentstore back in the ledger
+
+	shipmentbytes, err := stub.GetState("shipmentstore")
+	if err != nil {
+		return shim.Error("Can't retrieve the shipmentstore from the ledger")
+	}
+
+	if len(shipmentbytes) == 0 {
+		return shim.Error("Can't update the required shipment status, because the shipment store is empty, there are no shipments registered")
+	}
+
+	shipmentStore := make(map[string]Shipment)
+
+	err = json.Unmarshal(shipmentbytes, &shipmentStore)
+	if err != nil {
+		return shim.Error("Can't convert shipmentstore from []byte to golang structure")
+	}
+
+	//assuming that appropriate actor is accessing and updating the status
+	//in later iterations we'll update the code to see that only proper actor can update the status to appropriate value
+	shipment := Shipment{}
+	shipment.TemperatureReadings = make(map[string]float64)
+	valueSet := false
+	for id, shipmentValue := range shipmentStore {
+		if id == shipmentId {
+			shipment = shipmentValue
+			valueSet = true
+			break
+		}
+	}
+
+	if valueSet == false {
+		return shim.Error("Can't update the status of the shipment, as the required shipment does not exist")
+	}
+
+	shipment.Status = newStatus
+	shipmentStore[shipmentId] = shipment
+
+	//In later iterations, here we will add the code to update the shipment property "EligibleForRejection"
+	//check for last three temperature readings and  set the "EligibleForRejection" property
+
+	shipmentbytes, err = json.Marshal(shipmentStore)
+	if err != nil {
+		return shim.Error("Error converting shipmentStore from golang structure to json string []byte")
+	}
+
+	err = stub.PutState("shipmentstore", shipmentbytes)
+	if err != nil {
+		return shim.Error("Error storing the shipmentstore in the ledger")
+	}
+
+	fmt.Println("Successfully updated the shipment ", shipment, "with the new status value ", newStatus)
+
+	return shim.Success([]byte("Successfully updated the requested shipment status with the provided status value"))
 }
